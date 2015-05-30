@@ -1,5 +1,18 @@
-helpers = require('../helpers')
-AWS = helpers.AWS
+# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+#     http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
+AWS = require('../../lib/core')
+require('../../lib/signers/s3')
 
 describe 'AWS.Signers.S3', ->
 
@@ -27,7 +40,7 @@ describe 'AWS.Signers.S3', ->
     sessionToken = null
 
   buildRequest = () ->
-    req = new AWS.HttpRequest('https://s3.amazonaws.com')
+    req = new AWS.HttpRequest()
     req.method = method
     req.path = path
     req.headers = headers
@@ -55,23 +68,23 @@ describe 'AWS.Signers.S3', ->
     it 'sets the date header when not present', ->
       req = buildRequest()
       addAuth(req)
-      expect(req.headers['X-Amz-Date']).to.equal(AWS.util.date.rfc822(date))
+      expect(req.headers['Date']).toEqual(AWS.util.date.rfc822(date))
 
     it 'overwrites Date if present', ->
       req = buildRequest()
-      req.headers['X-Amz-Date'] = 'date-string'
+      req.headers['Date'] = 'date-string'
       addAuth(req)
-      expect(req.headers['X-Amz-Date']).to.equal(AWS.util.date.rfc822(date))
+      expect(req.headers['Date']).toEqual(AWS.util.date.rfc822(date))
 
     it 'omits the security token header when session token is blank', ->
       sessionToken = null
       req = addAuth()
-      expect(req.headers['x-amz-security-token']).to.equal(undefined)
+      expect(req.headers['X-Amz-Security-Token']).toEqual(undefined)
 
     it 'adds a security token header when session token available', ->
       sessionToken = 'session'
       req = addAuth()
-      expect(req.headers['x-amz-security-token']).to.equal('session')
+      expect(req.headers['X-Amz-Security-Token']).toEqual('session')
 
     it 'adds an Authorization header which contains akid and signature', ->
 
@@ -81,62 +94,44 @@ describe 'AWS.Signers.S3', ->
 
       signer = new AWS.Signers.S3(req)
 
-      helpers.spyOn(signer, 'stringToSign')
+      spyOn(signer, 'stringToSign')
       signer.stringToSign.andReturn('string-to-sign')
       signer.addAuthorization(creds, date)
 
-      expect(req.headers['Authorization']).to.equal('AWS AKID:Gg5WLabTOvH0WMd15wv7lWe4zK0=')
-
-    it 'properly signs special characters', ->
-
-      creds = { accessKeyId: 'AKID', secretAccessKey: 'secret' }
-
-      req = buildRequest()
-
-      signer = new AWS.Signers.S3(req)
-
-      helpers.spyOn(signer, 'stringToSign')
-      signer.stringToSign.andReturn('!@#$%^&*();\':"{}[],./?`~')
-      signer.addAuthorization(creds, date)
-
-      expect(req.headers['Authorization']).to.equal('AWS AKID:2E04i7QCa0uZTYtxue9dEqto3dg=')
-
+      expect(req.headers['Authorization']).toEqual('AWS AKID:Gg5WLabTOvH0WMd15wv7lWe4zK0=')
 
   describe 'stringToSign', ->
 
     beforeEach ->
-      headers['X-Amz-Date'] = 'DATE-STRING'
+      headers['Date'] = 'DATE-STRING'
 
     it 'builds a basic string to sign', ->
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       POST
 
 
-
-      x-amz-date:DATE-STRING
+      DATE-STRING
       /
       """)
 
     it 'includes content md5 and content type when present', ->
       headers['Content-Type'] = 'CONTENT-TYPE'
       headers['Content-MD5'] = 'CONTENT-MD5'
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       POST
       CONTENT-MD5
       CONTENT-TYPE
-
-      x-amz-date:DATE-STRING
+      DATE-STRING
       /
       """)
 
     it 'includes the http method, whatever it is', ->
       method = 'VERB'
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       VERB
 
 
-
-      x-amz-date:DATE-STRING
+      DATE-STRING
       /
       """)
 
@@ -144,13 +139,12 @@ describe 'AWS.Signers.S3', ->
       headers['X-Amz-Abc'] = 'abc'
       headers['X-Amz-Xyz'] = 'xyz'
       headers['random-header'] = 'random'
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       POST
 
 
-
+      DATE-STRING
       x-amz-abc:abc
-      x-amz-date:DATE-STRING
       x-amz-xyz:xyz
       /
       """)
@@ -159,13 +153,12 @@ describe 'AWS.Signers.S3', ->
       headers['x-amz-Abc'] = 'abc'
       headers['x-amz-Xyz'] = 'xyz'
       headers['random-header'] = 'random'
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       POST
 
 
-
+      DATE-STRING
       x-amz-abc:abc
-      x-amz-date:DATE-STRING
       x-amz-xyz:xyz
       /
       """)
@@ -174,13 +167,12 @@ describe 'AWS.Signers.S3', ->
       headers['x-amz-mno'] = 'mno'
       headers['x-amz-Xyz'] = 'xyz'
       headers['x-amz-Abc'] = 'abc'
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       POST
 
 
-
+      DATE-STRING
       x-amz-abc:abc
-      x-amz-date:DATE-STRING
       x-amz-mno:mno
       x-amz-xyz:xyz
       /
@@ -188,108 +180,99 @@ describe 'AWS.Signers.S3', ->
 
     it 'builds a canonical resource from the path', ->
       path = '/bucket_name/key'
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       POST
 
 
-
-      x-amz-date:DATE-STRING
+      DATE-STRING
       /bucket_name/key
       """)
 
     it 'appends the bucket to the path when it is part of the hostname', ->
       path = '/'
       virtualHostedBucket = 'bucket-name'
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       POST
 
 
-
-      x-amz-date:DATE-STRING
+      DATE-STRING
       /bucket-name/
       """)
 
     it 'appends the subresource portion of the path querystring', ->
       path = '/?acl'
       virtualHostedBucket = 'bucket-name'
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       POST
 
 
-
-      x-amz-date:DATE-STRING
+      DATE-STRING
       /bucket-name/?acl
       """)
 
     it 'includes the sub resource value when present', ->
       path = '/bucket_name/key?versionId=123'
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       POST
 
 
-
-      x-amz-date:DATE-STRING
+      DATE-STRING
       /bucket_name/key?versionId=123
       """)
 
     it 'omits non-sub-resource querystring params from the resource string', ->
       path = '/?versionId=abc&next-marker=xyz'
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       POST
 
 
-
-      x-amz-date:DATE-STRING
+      DATE-STRING
       /?versionId=abc
       """)
 
     it 'sorts sub resources by name', ->
       path = '/?logging&acl&website&torrent=123' # made up example
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       POST
 
 
-
-      x-amz-date:DATE-STRING
+      DATE-STRING
       /?acl&logging&torrent=123&website
       """)
 
     it 'sorts sub resources by name', ->
       path = '/?logging&acl&website&torrent=123' # made up example
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       POST
 
 
-
-      x-amz-date:DATE-STRING
+      DATE-STRING
       /?acl&logging&torrent=123&website
       """)
 
     it 'includes the un-decoded query string param for sub resources', ->
       path = '/?versionId=a%2Bb' # a+b
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       POST
 
 
-
-      x-amz-date:DATE-STRING
+      DATE-STRING
       /?versionId=a%2Bb
       """)
 
     it 'includes the non-encoded query string get header overrides', ->
       path = '/?response-content-type=a%2Bb' # a+b
-      expect(stringToSign()).to.equal("""
+      expect(stringToSign()).toEqual("""
       POST
 
 
-
-      x-amz-date:DATE-STRING
+      DATE-STRING
       /?response-content-type=a+b
       """)
 
     it 'omits the date header when not present', ->
-      delete headers['X-Amz-Date']
-      expect(stringToSign()).to.equal("""
+      delete headers['Date']
+      expect(stringToSign()).toEqual("""
       POST
 
 

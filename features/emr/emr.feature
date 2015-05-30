@@ -1,3 +1,16 @@
+# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+#     http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 # language: en
 @emr
 Feature: Amazon Elastic MapReduce
@@ -5,20 +18,12 @@ Feature: Amazon Elastic MapReduce
   I want to use Amazon Elastic MapReduce
 
   Scenario: Running a job flow
-    Given I create a service role with name prefix "emr-integ"
-    And I create an instance profile with name prefix "emr-ec2-integ"
-    And I create a job flow role with name prefix "emr-ec2-integ"
-    And I add the job flow role to the instance profile 
-    Then I run an EMR job flow with name prefix "aws-sdk-js-integration"
-    And I store the job flow ID
+    Given I run an EMR job flow with name prefix "aws-sdk-js-integration"
+    Then I should store the job flow ID
     And when I describe the EMR job flows
     Then the list should contain the job flow ID
     And I terminate the job flow
-    And I delete the service role
-    And I remove the job flow role from the instance profile
-    And I delete the job flow role
-    And I delete the instance profile
 
   Scenario: Error handling
     Given I run an EMR job flow with invalid parameters
-    Then the error code should be "ValidationException"
+    Then the error code should be "ValidationError"

@@ -1,6 +1,21 @@
+/**
+ * Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"). You
+ * may not use this file except in compliance with the License. A copy of
+ * the License is located at
+ *
+ *     http://aws.amazon.com/apache2.0/
+ *
+ * or in the "license" file accompanying this file. This file is
+ * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ * ANY KIND, either express or implied. See the License for the specific
+ * language governing permissions and limitations under the License.
+ */
+
 module.exports = function() {
   this.Before("@ec2", function (callback) {
-    this.service = new this.AWS.EC2();
+    this.client = new this.AWS.EC2.Client();
     callback();
   });
 
@@ -18,50 +33,5 @@ module.exports = function() {
 
   this.Given(/^I describe the EC2 instance "([^"]*)"$/, function(instanceId, callback) {
     this.request(null, 'describeInstances', {InstanceIds: [instanceId]}, callback, false);
-  });
-
-  this.Given(/^I attempt to copy an encrypted snapshot across regions$/, function (callback) {
-    var self = this;
-    var volId, srcSnapId, dstSnapId, params;
-    var sourceRegion = 'us-west-2';
-    var destRegion = 'us-east-1';
-    var srcEc2 = new this.AWS.EC2({region: sourceRegion});
-    var dstEc2 = new this.AWS.EC2({region: destRegion});
-
-    function teardown() {
-      if (volId) srcEc2.deleteVolume({VolumeId: volId}).send();
-      if (srcSnapId) srcEc2.deleteSnapshot({SnapshotId: srcSnapId}).send();
-      if (dstSnapId) dstEc2.deleteSnapshot({SnapshotId: dstSnapId}).send();
-    }
-
-    params = {AvailabilityZone:sourceRegion+'a',Size:10,Encrypted:true};
-    srcEc2.createVolume(params, function(err, data) {
-      if (err) { teardown(); return callback(err); }
-      volId = data.VolumeId;
-
-      srcEc2.waitFor('volumeAvailable', {VolumeIds: [volId]}, function(err) {
-        if (err) { teardown(); return callback(err); }
-
-        srcEc2.createSnapshot({VolumeId: volId}, function(err, data) {
-          if (err) { teardown(); return callback(err); }
-          srcSnapId = data.SnapshotId;
-
-          setTimeout(function() {
-            params = {SourceRegion: sourceRegion, SourceSnapshotId: srcSnapId};
-            dstEc2.copySnapshot(params, function(err, data) {
-              if (data) dstSnapId = data.SnapshotId;
-              self.success = true;
-              callback();
-              teardown();
-            });
-          }, 5000);
-        });
-      });
-    });
-  });
-
-  this.Then(/^the copy snapshot attempt should be successful$/, function (callback) {
-    this.assert.equal(this.success, true);
-    callback();
   });
 };

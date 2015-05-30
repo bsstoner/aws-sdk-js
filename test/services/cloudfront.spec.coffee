@@ -1,26 +1,33 @@
+# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+#     http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 helpers = require('../helpers')
 AWS = helpers.AWS
 
-describe 'AWS.CloudFront', ->
+require('../../lib/services/route53')
+
+describe 'AWS.Route53.Client', ->
 
   cf = null
   beforeEach ->
-    cf = new AWS.CloudFront()
-
-  describe 'signing', ->
-    it 'signs with us-east-1 region', ->
-      helpers.mockHttpResponse 200, {}, ''
-      cf.listDistributions ->
-        auth = @request.httpRequest.headers['Authorization']
-        expect(auth).to.match(/\/us-east-1\/cloudfront\/aws4_request/)
+    cf = new AWS.CloudFront.Client()
 
   describe 'createInvalidation', ->
     it 'correctly builds the request', ->
       helpers.mockHttpResponse 200, {}, ''
-      api = cf.api.apiVersion
       xml =
         """
-        <InvalidationBatch xmlns="http://cloudfront.amazonaws.com/doc/#{api}/">
+        <InvalidationBatch xmlns="http://cloudfront.amazonaws.com/doc/2012-05-05/">
           <Paths>
             <Quantity>2</Quantity>
             <Items>
@@ -40,5 +47,5 @@ describe 'AWS.CloudFront', ->
           CallerReference: 'abc'
       cf.createInvalidation params, (err, data) ->
         req = this.request.httpRequest
-        expect(req.path).to.equal("/#{api}/distribution/ID/invalidation")
+        expect(req.path).toEqual('/2012-05-05/distribution/ID/invalidation')
         helpers.matchXML(req.body, xml)

@@ -1,41 +1,54 @@
+# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+#     http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 helpers = require('../helpers')
 AWS = helpers.AWS
 
-describe 'AWS.Route53', ->
+require('../../lib/services/route53')
 
-  service = null
-  api = null
+describe 'AWS.Route53.Client', ->
+
+  r53 = null
   beforeEach ->
-    service = new AWS.Route53()
-    api = service.api.apiVersion
+    r53 = new AWS.Route53.Client()
 
   describe 'setEndpoint', ->
     it 'always enables SSL if no endpoint is set', ->
-      service = new AWS.Route53(sslEnabled: false)
-      expect(service.endpoint.protocol).to.equal('https:')
+      client = new AWS.Route53.Client(sslEnabled: false)
+      expect(client.endpoint.protocol).toEqual('https:')
 
     it 'allows overriding SSL if custom endpoint is set', ->
-      service = new AWS.Route53(endpoint: 'http://example.com')
-      expect(service.endpoint.protocol).to.equal('http:')
+      client = new AWS.Route53.Client(endpoint: 'http://example.com')
+      expect(client.endpoint.protocol).toEqual('http:')
 
   describe 'building requests', ->
-    service = new AWS.Route53
+    client = new AWS.Route53.Client
 
     it 'should fix hosted zone ID on input', ->
-      req = service.getHostedZone(Id: '/hostedzone/ABCDEFG')
+      req = client.getHostedZone(Id: '/hostedzone/ABCDEFG')
       req.emit('build', [req])
-      expect(req.httpRequest.path).to.match(new RegExp('/hostedzone/ABCDEFG$'))
+      expect(req.httpRequest.path).toMatch('/hostedzone/ABCDEFG$')
 
     it 'should fix health check ID on input', ->
-      req = service.getHealthCheck(HealthCheckId: '/healthcheck/ABCDEFG')
+      req = client.getHealthCheck(HealthCheckId: '/healthcheck/ABCDEFG')
       req.emit('build', [req])
-      expect(req.httpRequest.path).to.match(new RegExp('/healthcheck/ABCDEFG$'))
+      expect(req.httpRequest.path).toMatch('/healthcheck/ABCDEFG$')
 
   describe 'changeResourceRecordSets', ->
     it 'correctly builds the XML document', ->
       xml =
         """
-        <ChangeResourceRecordSetsRequest xmlns="https://route53.amazonaws.com/doc/#{api}/">
+        <ChangeResourceRecordSetsRequest xmlns="https://route53.amazonaws.com/doc/2012-12-12/">
           <ChangeBatch>
             <Comment>comment</Comment>
             <Changes>
@@ -73,5 +86,5 @@ describe 'AWS.Route53', ->
             }
           ]
           Comment: 'comment'
-      service.changeResourceRecordSets params, (err, data) ->
+      r53.changeResourceRecordSets params, (err, data) ->
         helpers.matchXML(this.request.httpRequest.body, xml)

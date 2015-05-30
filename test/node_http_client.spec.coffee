@@ -1,30 +1,33 @@
+# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+#     http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 helpers = require('./helpers')
 AWS = helpers.AWS
+MockClient = helpers.MockClient
 
-if AWS.util.isNode()
-  describe 'AWS.NodeHttpClient', ->
-    http = new AWS.NodeHttpClient()
+describe 'AWS.NodeHttpClient', ->
+  http = new AWS.NodeHttpClient()
 
-    describe 'maxSockets delegation', ->
-      it 'delegates maxSockets from agent to globalAgent', ->
-        https = require('https')
-        agent = http.sslAgent()
-        expect(https.globalAgent.maxSockets).to.equal(agent.maxSockets)
-        https.globalAgent.maxSockets += 1
-        expect(https.globalAgent.maxSockets).to.equal(agent.maxSockets)
+  describe 'handleRequest', ->
+    it 'emits httpError in error event', ->
+      done = false
+      endpoint = new AWS.Endpoint('http://invalid')
+      req = new AWS.Request(endpoint: endpoint, config: region: 'empty')
+      resp = new AWS.Response(req)
+      req.on 'httpError', (cbErr, cbResp) ->
+        expect(cbErr instanceof Error).toBeTruthy()
+        expect(cbResp).toBe(resp)
+        done = true
 
-    describe 'handleRequest', ->
-      it 'emits error event', (done) ->
-        req = new AWS.HttpRequest 'http://invalid'
-        http.handleRequest req, {}, null, (err) ->
-          expect(err.code).to.equal('ENOTFOUND')
-          done()
-
-      it 'supports timeout in httpOptions', ->
-        numCalls = 0
-        req = new AWS.HttpRequest 'http://1.1.1.1'
-        http.handleRequest req, {timeout: 1}, null, (err) ->
-          numCalls += 1
-          expect(err.code).to.equal('TimeoutError')
-          expect(err.message).to.equal('Connection timed out after 1ms')
-          expect(numCalls).to.equal(1)
+      runs -> http.handleRequest(req, resp)
+      waitsFor -> done

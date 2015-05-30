@@ -1,6 +1,21 @@
+/**
+ * Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"). You
+ * may not use this file except in compliance with the License. A copy of
+ * the License is located at
+ *
+ *     http://aws.amazon.com/apache2.0/
+ *
+ * or in the "license" file accompanying this file. This file is
+ * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ * ANY KIND, either express or implied. See the License for the specific
+ * language governing permissions and limitations under the License.
+ */
+
 module.exports = function() {
   this.Before("@rds", function (callback) {
-    this.service = new this.AWS.RDS();
+    this.client = new this.AWS.RDS.Client();
     callback();
   });
 
@@ -11,7 +26,7 @@ module.exports = function() {
   });
 
   this.Given(/^the RDS security group name is in the result$/, function(callback) {
-    var name = this.data.DBSecurityGroup.DBSecurityGroupName;
+    var name = this.data.DBSecurityGroupName;
     this.assert.equal(name, this.dbGroupName);
     callback();
   });
@@ -30,44 +45,5 @@ module.exports = function() {
   this.Then(/^I delete the RDS security group$/, function(callback) {
     var params = {DBSecurityGroupName: this.dbGroupName};
     this.request(null, 'deleteDBSecurityGroup', params, callback);
-  });
-
-  this.Given(/^I paginate the "([^"]*)" operation asynchronously with limit (\d+)$/, function (operation, limit, callback) {
-    var maxPages = 3;
-    limit = parseInt(limit);
-
-    var world = this;
-    this.numPages = 0;
-    this.numMarkers = 0
-    this.operation = operation;
-    this.paginationConfig = this.service.paginationConfig(operation);
-    this.params = this.params || {};
-    this.finishedPagination = false;
-
-    var marker = this.paginationConfig.outputToken;
-    if (this.paginationConfig.limitKey) {
-      this.params[this.paginationConfig.limitKey] = limit;
-    }
-    this.service[operation](this.params).eachPage(function (err, data, done) {
-      process.nextTick(function() {
-        if (err) callback.fail(err);
-        else if (data === null || world.numPages === maxPages) {
-          world.finishedPagination = true;
-          callback();
-          return false;
-        } else {
-          if (data[marker]) world.numMarkers++;
-          world.numPages++;
-          world.data = data;
-        }
-
-        done(); // start getting next page
-      });
-    });
-  });
-
-  this.Then(/^I should be able to asynchronously paginate all pages$/, function (callback) {
-    this.assert.equal(this.finishedPagination, true);
-    callback();
   });
 };

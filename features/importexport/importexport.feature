@@ -1,5 +1,18 @@
+# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+#     http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
+
 # language: en
-@importexport @requiresakid
+@importexport
 Feature: AWS Import/Export
 
   I want to use AWS Import/Export
@@ -14,18 +27,17 @@ Feature: AWS Import/Export
     deviceId: ABCDE
     generator: AWS ImportExport Web Service Tool 1.0
     prefix: imported/
-    eraseDevice: yes
-    notificationEmail: nobody@amazon.com
+    eraseDevice: no
     returnAddress:
-        name: Joe Random
+        name: Joe Random 
         company: Amazon Web Services
-        street1: 123 Any Street
-        city: Seattle
+        street1: 123 Any Street    
+        city: Anytown
         stateOrProvince: WA
         postalCode: 91111
         phoneNumber: 555-555-0100
         country: USA
-    serviceLevel: expeditedShipping
+    serviceLevel: expeditedShipping   
     """
     And I store the Import job ID
     And I get the Import job status

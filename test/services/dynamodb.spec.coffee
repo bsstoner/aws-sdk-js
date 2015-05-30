@@ -1,67 +1,45 @@
-helpers = require('../helpers')
-AWS = helpers.AWS
+# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"). You
+# may not use this file except in compliance with the License. A copy of
+# the License is located at
+#
+#     http://aws.amazon.com/apache2.0/
+#
+# or in the "license" file accompanying this file. This file is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+# ANY KIND, either express or implied. See the License for the specific
+# language governing permissions and limitations under the License.
 
-describe 'AWS.DynamoDB', ->
+AWS = require('../../lib/core')
+require('../../lib/services/dynamodb')
+
+describe 'AWS.DynamoDB.Client', ->
 
   configure = (options) ->
     new AWS.Config(options)
 
   ddb = (options) ->
-    new AWS.DynamoDB(configure(options))
+    new AWS.DynamoDB.Client(configure(options))
 
   describe 'config', ->
 
     it 'returns the configuration object it was constructed with', ->
-      config = configure(endpoint: 'localhost')
-      dynamo = new AWS.DynamoDB(config)
-      expect(dynamo.config).to.eql(config)
+      config = configure()
+      dynamo = new AWS.DynamoDB.Client(config)
+      expect(dynamo.config).toEqual(config)
 
   describe 'numRetries', ->
 
     it 'defaults to 10', ->
-      expect(ddb().numRetries()).to.equal(10)
+      expect(ddb().numRetries()).toEqual(10)
 
     it 'can be overridden in the config', ->
-      expect(ddb({ maxRetries: 2 }).numRetries()).to.equal(2)
+      expect(ddb({ maxRetries: 2 }).numRetries()).toEqual(2)
 
   describe 'retryDelays', ->
 
     it 'has a custom backoff function', ->
       delays = [ 0, 50, 100, 200, 400, 800, 1600, 3200, 6400, 12800 ]
-      expect(ddb().retryDelays()).to.eql(delays)
+      expect(ddb().retryDelays()).toEqual(delays)
 
-  describe 'CRC32 check', ->
-    dynamo = null
-
-    beforeEach ->
-      dynamo = ddb(accessKeyId: 'AKID', secretAccessKey: 'SECRET', region: 'us-west-2')
-
-    if AWS.util.isNode()
-      it 'does not verify response checksum when streaming', (done) ->
-        err = null
-        helpers.mockHttpResponse 200, {'x-amz-crc32': '0'}, """{"TableNames":["mock-table"]}"""
-        request = dynamo.listTables()
-        request.on 'complete', ->
-          expect(err).to.eql(null)
-          done()
-        s = request.createReadStream()
-        s.on 'data', ->
-        s.on 'error', (e) -> err = e
-
-    it 'does verify response checksum when not streaming', ->
-      helpers.mockHttpResponse 200, {'x-amz-crc32': '1575962599'}, """{"TableNames":["mock-table"]}"""
-      request = dynamo.listTables()
-      request.send (err, data) ->
-        expect(err).to.eql(null)
-
-    it 'does not verify response checksum when no [x-amz-crc32] header', ->
-      helpers.mockHttpResponse 200, {}, """{"TableNames":["mock-table"]}"""
-      request = dynamo.listTables()
-      request.send (err, data) ->
-        expect(err).to.eql(null)
-
-    it 'throws an error when response checksum does not match', ->
-      helpers.mockHttpResponse 200, {'x-amz-crc32': '0'}, """{"TableNames":["mock-table"]}"""
-      request = dynamo.listTables()
-      request.send (err, data) ->
-        expect(err.code).to.eql('CRC32CheckFailed')
